@@ -1092,7 +1092,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
           Copy link
         </button>
-        <button onclick="exportJson()" class="btn secondary action-export">
+        <button id="export-btn" onclick="exportJson()" class="btn secondary action-export" style="display: none;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
         </button>
@@ -1172,6 +1172,7 @@
     let isScenarioCollapsed = false; // Mobile collapse state
     let reviewerName = localStorage.getItem('sr-reviewer-name') || '';
     let roomId = null;
+    let isHost = false;
     let roomRef = null;
     let scenariosRef = null;
     let presenceRef = null;
@@ -1251,6 +1252,7 @@
     const uploadSubtitle = document.getElementById('upload-subtitle');
     const setupBanner = document.getElementById('setup-banner');
     const copyLinkBtn = document.getElementById('copy-link-btn');
+    const exportBtn = document.getElementById('export-btn');
     const reviewerChip = document.getElementById('reviewer-chip');
     const reviewerChipName = document.getElementById('reviewer-chip-name');
     const presenceList = document.getElementById('presence-list');
@@ -1374,9 +1376,32 @@
       return url.toString();
     }
 
+    function getHostedRooms() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('sr-hosted-rooms') || '[]');
+        return Array.isArray(raw) ? raw : [];
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function rememberHostedRoom(id) {
+      if (!id) return;
+      const rooms = getHostedRooms();
+      if (!rooms.includes(id)) {
+        rooms.push(id);
+        localStorage.setItem('sr-hosted-rooms', JSON.stringify(rooms));
+      }
+    }
+
+    function isHostedRoom(id) {
+      return Boolean(id) && getHostedRooms().includes(id);
+    }
+
     function updateCollabHeader() {
       if (reviewerChipName) reviewerChipName.textContent = reviewerName || 'You';
-      if (copyLinkBtn) copyLinkBtn.style.display = roomId ? 'inline-flex' : 'none';
+      if (copyLinkBtn) copyLinkBtn.style.display = isHost && roomId ? 'inline-flex' : 'none';
+      if (exportBtn) exportBtn.style.display = isHost ? 'inline-flex' : 'none';
     }
 
     function renderPresence(people) {
@@ -1404,6 +1429,7 @@
       scenariosRef = null;
       roomRef = null;
       roomId = null;
+      isHost = false;
       renderPresence([]);
       updateCollabHeader();
     }
@@ -1494,6 +1520,8 @@
       });
       roomId = id;
       roomRef = ref;
+      rememberHostedRoom(id);
+      isHost = true;
       const url = roomUrl(id);
       history.replaceState({}, '', url);
       listenToRoomScenarios();
@@ -1517,6 +1545,7 @@
       }
       roomId = id;
       roomRef = ref;
+      isHost = isHostedRoom(id);
       applyRemoteScenarios(snap.val().scenarios);
       showViewer();
       listenToRoomScenarios();
@@ -1573,6 +1602,7 @@
       currentIndex = 0;
       editingCards.clear();
       isEditingScenario = false;
+      isHost = true;
       showViewer();
 
       if (options.createRoom && isFirebaseConfigured()) {
@@ -1687,6 +1717,7 @@
     };
 
     window.exportJson = function() {
+      if (!isHost) return;
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(scenarios, null, 2));
       const dlAnchorElem = document.createElement('a');
       dlAnchorElem.setAttribute("href", dataStr);
@@ -2125,7 +2156,7 @@
     });
 
     copyLinkBtn.addEventListener('click', async () => {
-      if (!roomId) {
+      if (!isHost || !roomId) {
         showToast("This session is local only. Add Firebase keys to share.", true);
         return;
       }
