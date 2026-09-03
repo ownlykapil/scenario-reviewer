@@ -33,6 +33,10 @@
       --unreviewed-bg: #f1f5f9;
       --unreviewed-text: #475569;
 
+      --skipped: #64748b;
+      --skipped-bg: #e2e8f0;
+      --skipped-text: #334155;
+
       --radius-lg: 16px;
       --radius: 12px;
       --radius-sm: 8px;
@@ -154,6 +158,9 @@
     
     .btn.warning { background: var(--surface); color: var(--warning-text); border-color: var(--warning); }
     .btn.warning:hover:not(:disabled) { background: var(--warning-bg); border-color: var(--warning); }
+
+    .btn.skipped { background: var(--surface); color: var(--skipped-text); border-color: var(--skipped); }
+    .btn.skipped:hover:not(:disabled) { background: var(--skipped-bg); border-color: var(--skipped); }
     
     .btn.ghost { background: transparent; color: var(--text-muted); border-color: transparent; box-shadow: none; }
     .btn.ghost:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-main); }
@@ -395,6 +402,8 @@
     .badge.invalid { background: var(--danger-bg); color: var(--danger-text); border-color: var(--error-border); }
     .badge.unreviewed { background: var(--unreviewed-bg); color: var(--unreviewed-text); border-color: var(--unreviewed-border); }
     .badge.warning { background: var(--warning-bg); color: var(--warning-text); border-color: #fcd34d; }
+    .badge.skipped { background: var(--skipped-bg); color: var(--skipped-text); border-color: #cbd5e1; }
+    .badge .byline { font-weight: 500; opacity: 0.85; }
 
     .response-body {
       padding: 1.5rem;
@@ -653,6 +662,7 @@
     .status-icon.invalid { background: var(--danger-bg); color: var(--danger); }
     .status-icon.unreviewed { background: var(--unreviewed-bg); border: 2px solid var(--border-strong); }
     .status-icon.warning { background: var(--warning-bg); color: var(--warning); }
+    .status-icon.skipped { background: var(--skipped-bg); color: var(--skipped); }
 
     .index-label {
       font-size: 0.9rem;
@@ -913,6 +923,94 @@
       from { transform: translateY(100%); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+
+    .reviewer-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      text-align: left;
+      margin-bottom: 1.5rem;
+    }
+
+    .reviewer-field label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .collab-hint {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .reviewer-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.7rem;
+      background: var(--primary-soft);
+      color: var(--primary-hover);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      max-width: 150px;
+    }
+
+    .reviewer-chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .presence-list {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      max-width: 180px;
+      overflow: hidden;
+    }
+
+    .presence-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.25rem 0.55rem;
+      white-space: nowrap;
+    }
+
+    .index-item-left { min-width: 0; }
+    .index-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .setup-banner {
+      display: none;
+      margin-top: 1.25rem;
+      padding: 0.85rem 1rem;
+      background: var(--warning-bg);
+      border: 1px solid #fcd34d;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--warning-text);
+      text-align: left;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 768px) {
+      .reviewer-chip, .presence-list { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -926,20 +1024,37 @@
       <div class="upload-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       </div>
-      <h1>Scenario Reviewer</h1>
-      <p>Upload your JSON file to start a high-speed review workflow. Evaluate, edit, and export scenarios seamlessly.</p>
-      
-      <div id="drop-zone" class="drop-zone">
-        <div class="drop-zone-text">Drag & Drop JSON file here</div>
-        <p style="margin-bottom: 1.5rem; font-size: 0.85rem;">or</p>
-        <button class="btn" onclick="document.getElementById('file-input').click()">
-          Browse Files
-        </button>
-        <input type="file" id="file-input" accept=".json" style="display: none" />
+      <h1 id="upload-title">Scenario Reviewer</h1>
+      <p id="upload-subtitle">Enter your name, upload a JSON file, then share a link so the team can review in parallel.</p>
+
+      <div class="reviewer-field">
+        <label for="reviewer-name">Your name</label>
+        <input id="reviewer-name" class="form-control" type="text" placeholder="e.g. Kapil" maxlength="40" autocomplete="name" />
       </div>
 
-      <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
-        <button id="load-sample-btn" class="btn secondary">Load Sample Data</button>
+      <div id="host-panel">
+        <div id="drop-zone" class="drop-zone">
+          <div class="drop-zone-text">Drag & Drop JSON file here</div>
+          <p style="margin-bottom: 1.5rem; font-size: 0.85rem;">or</p>
+          <button class="btn" onclick="document.getElementById('file-input').click()">
+            Browse Files
+          </button>
+          <input type="file" id="file-input" accept=".json" style="display: none" />
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+          <button id="load-sample-btn" class="btn secondary">Load Sample Data</button>
+        </div>
+        <p class="collab-hint">After you upload, copy the room link and send it to teammates. They do not need to export.</p>
+      </div>
+
+      <div id="join-panel" style="display: none;">
+        <button id="join-room-btn" class="btn" style="width: 100%;">Join this review</button>
+        <p class="collab-hint">You will see the same file as the host. Reviews appear for everyone as they happen.</p>
+      </div>
+
+      <div id="setup-banner" class="setup-banner">
+        Sharing is off until Firebase is configured. Open <code>firebase-config.js</code> and paste your project keys. You can still review locally.
       </div>
     </div>
   </div>
@@ -963,12 +1078,20 @@
       </div>
 
       <div class="header-actions">
+        <div id="reviewer-chip" class="reviewer-chip" title="You">
+          <span id="reviewer-chip-name">You</span>
+        </div>
+        <div id="presence-list" class="presence-list" title="People in this room"></div>
         <div class="global-progress" title="Overall Review Progress">
           <span id="global-progress-text">0 / 0 Reviewed</span>
           <div class="progress-track">
             <div id="global-progress-fill" class="progress-fill" style="width: 0%"></div>
           </div>
         </div>
+        <button id="copy-link-btn" class="btn secondary action-export" style="display: none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          Copy link
+        </button>
         <button onclick="exportJson()" class="btn secondary action-export">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
@@ -1037,6 +1160,9 @@
     </main>
   </div>
 
+  <script src="firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
   <script>
     // State
     let scenarios = [];
@@ -1044,6 +1170,16 @@
     let editingCards = new Set(); // Tracks which response cards are in edit mode
     let isEditingScenario = false;
     let isScenarioCollapsed = false; // Mobile collapse state
+    let reviewerName = localStorage.getItem('sr-reviewer-name') || '';
+    let roomId = null;
+    let roomRef = null;
+    let scenariosRef = null;
+    let presenceRef = null;
+    let presenceTimer = null;
+    let roomListener = null;
+    let applyingRemote = false;
+    let firebaseDb = null;
+    const peerId = (crypto.randomUUID && crypto.randomUUID()) || (`peer-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
     const sampleData = [
       {
@@ -1107,7 +1243,20 @@
     const hamburgerBtn = document.getElementById('hamburger-btn');
     const mobileOverlay = document.getElementById('mobile-overlay');
     const reviewRail = document.querySelector('.review-rail');
+    const reviewerNameInput = document.getElementById('reviewer-name');
+    const hostPanel = document.getElementById('host-panel');
+    const joinPanel = document.getElementById('join-panel');
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    const uploadTitle = document.getElementById('upload-title');
+    const uploadSubtitle = document.getElementById('upload-subtitle');
+    const setupBanner = document.getElementById('setup-banner');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const reviewerChip = document.getElementById('reviewer-chip');
+    const reviewerChipName = document.getElementById('reviewer-chip-name');
+    const presenceList = document.getElementById('presence-list');
     let searchActiveIndex = -1;
+
+    if (reviewerNameInput) reviewerNameInput.value = reviewerName;
 
     // Utility Functions
 
@@ -1148,11 +1297,266 @@
       if (isValid === true) return { class: 'valid', text: 'Approved', icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' };
       if (isValid === false) return { class: 'invalid', text: 'Changes Requested', icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' };
       if (isValid === 'later') return { class: 'warning', text: 'Review Later', icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>' };
+      if (isValid === 'not_needed') return { class: 'skipped', text: 'Not Needed', icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>' };
       return { class: 'unreviewed', text: 'Unreviewed', icon: '' };
     }
 
+    function isReviewedStatus(isValid) {
+      return isValid === true || isValid === false || isValid === 'not_needed';
+    }
+
+    function getReviewerName() {
+      const typed = reviewerNameInput ? reviewerNameInput.value.trim() : '';
+      reviewerName = typed || reviewerName || 'Anonymous';
+      if (typed) localStorage.setItem('sr-reviewer-name', typed);
+      return reviewerName;
+    }
+
+    function requireReviewerName() {
+      const name = (reviewerNameInput && reviewerNameInput.value.trim()) || reviewerName;
+      if (!name) {
+        showToast("Enter your name first.", true);
+        if (reviewerNameInput) reviewerNameInput.focus();
+        return false;
+      }
+      getReviewerName();
+      if (reviewerChipName) reviewerChipName.textContent = reviewerName;
+      return true;
+    }
+
+    function isFirebaseConfigured() {
+      const c = window.FIREBASE_CONFIG || {};
+      return Boolean(c.apiKey && c.databaseURL && c.projectId);
+    }
+
+    function initFirebase() {
+      if (firebaseDb || !isFirebaseConfigured() || typeof firebase === 'undefined') return firebaseDb;
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+        firebaseDb = firebase.database();
+      } catch (err) {
+        console.error(err);
+        showToast("Could not start sharing. Check firebase-config.js.", true);
+      }
+      return firebaseDb;
+    }
+
+    function generateRoomId() {
+      const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+      let id = '';
+      for (let i = 0; i < 10; i++) id += chars[Math.floor(Math.random() * chars.length)];
+      return id;
+    }
+
+    function toArray(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      return Object.keys(value).sort((a, b) => Number(a) - Number(b)).map(k => value[k]);
+    }
+
+    function normalizeRemoteScenarios(raw) {
+      return toArray(raw).map(s => ({
+        ...s,
+        responses: toArray(s && s.responses).map(r => ({
+          ...r,
+          is_valid: r && r.is_valid === undefined ? null : (r ? r.is_valid : null)
+        }))
+      }));
+    }
+
+    function pendingRoomId() {
+      return new URLSearchParams(window.location.search).get('room');
+    }
+
+    function roomUrl(id) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', id);
+      return url.toString();
+    }
+
+    function updateCollabHeader() {
+      if (reviewerChipName) reviewerChipName.textContent = reviewerName || 'You';
+      if (copyLinkBtn) copyLinkBtn.style.display = roomId ? 'inline-flex' : 'none';
+    }
+
+    function renderPresence(people) {
+      if (!presenceList) return;
+      const others = (people || []).filter(p => p && p.name && p.id !== peerId);
+      presenceList.innerHTML = others.slice(0, 4).map(p =>
+        `<span class="presence-pill">${escapeHtml(p.name)}</span>`
+      ).join('');
+      if (others.length > 4) {
+        presenceList.innerHTML += `<span class="presence-pill">+${others.length - 4}</span>`;
+      }
+    }
+
+    function stopRoomSync() {
+      if (roomListener && scenariosRef) scenariosRef.off('value', roomListener);
+      if (presenceRef) {
+        presenceRef.onDisconnect().cancel();
+        presenceRef.remove();
+      }
+      if (presenceTimer) clearInterval(presenceTimer);
+      if (roomRef) roomRef.child('presence').off();
+      roomListener = null;
+      presenceRef = null;
+      presenceTimer = null;
+      scenariosRef = null;
+      roomRef = null;
+      roomId = null;
+      renderPresence([]);
+      updateCollabHeader();
+    }
+
+    function listenToRoomScenarios() {
+      scenariosRef = roomRef.child('scenarios');
+      roomListener = scenariosRef.on('value', snap => {
+        applyRemoteScenarios(snap.val());
+      });
+    }
+
+    function startPresence() {
+      if (!roomRef) return;
+      presenceRef = roomRef.child(`presence/${peerId}`);
+      const stamp = () => presenceRef.set({ id: peerId, name: getReviewerName(), at: Date.now() });
+      stamp();
+      presenceRef.onDisconnect().remove();
+      presenceTimer = setInterval(stamp, 20000);
+      roomRef.child('presence').on('value', snap => {
+        const val = snap.val() || {};
+        renderPresence(Object.values(val));
+      });
+    }
+
+    function applyRemoteScenarios(raw) {
+      const incoming = normalizeRemoteScenarios(raw);
+      if (!incoming.length) return;
+      applyingRemote = true;
+      const canRerender = !isEditingScenario && editingCards.size === 0;
+      if (canRerender) {
+        scenarios = incoming;
+        renderCurrentScenario();
+        updateGlobalProgress();
+      } else {
+        incoming.forEach((s, i) => {
+          if (!scenarios[i]) {
+            scenarios[i] = s;
+            return;
+          }
+          if (i === currentIndex) {
+            if (!isEditingScenario) scenarios[i].scenario = s.scenario;
+            (s.responses || []).forEach((r, j) => {
+              if (!editingCards.has(j)) scenarios[i].responses[j] = r;
+            });
+          } else {
+            scenarios[i] = s;
+          }
+        });
+        if (incoming.length < scenarios.length && !editingCards.size) {
+          scenarios.length = incoming.length;
+        }
+        updateGlobalProgress();
+      }
+      applyingRemote = false;
+    }
+
+    function writeRoomPath(path, value) {
+      if (applyingRemote || !roomRef) return;
+      roomRef.child(path).set(value);
+    }
+
+    function syncResponse(scenarioIdx, responseIdx) {
+      if (!roomRef || applyingRemote) return;
+      const resp = scenarios[scenarioIdx] && scenarios[scenarioIdx].responses[responseIdx];
+      if (!resp) return;
+      writeRoomPath(`scenarios/${scenarioIdx}/responses/${responseIdx}`, resp);
+    }
+
+    function syncScenario(scenarioIdx) {
+      if (!roomRef || applyingRemote) return;
+      writeRoomPath(`scenarios/${scenarioIdx}`, scenarios[scenarioIdx]);
+    }
+
+    function syncAllScenarios() {
+      if (!roomRef || applyingRemote) return;
+      writeRoomPath('scenarios', scenarios);
+    }
+
+    async function createRoom(data) {
+      const db = initFirebase();
+      if (!db) return false;
+      const id = generateRoomId();
+      const ref = db.ref(`rooms/${id}`);
+      await ref.set({
+        createdAt: Date.now(),
+        createdBy: getReviewerName(),
+        scenarios: data
+      });
+      roomId = id;
+      roomRef = ref;
+      const url = roomUrl(id);
+      history.replaceState({}, '', url);
+      listenToRoomScenarios();
+      startPresence();
+      updateCollabHeader();
+      showToast("Room ready. Copy the link to invite teammates.");
+      return true;
+    }
+
+    async function joinRoom(id) {
+      const db = initFirebase();
+      if (!db) {
+        showToast("Sharing is not configured. Add keys to firebase-config.js.", true);
+        return false;
+      }
+      const ref = db.ref(`rooms/${id}`);
+      const snap = await ref.once('value');
+      if (!snap.exists()) {
+        showToast("This room was not found.", true);
+        return false;
+      }
+      roomId = id;
+      roomRef = ref;
+      applyRemoteScenarios(snap.val().scenarios);
+      showViewer();
+      listenToRoomScenarios();
+      startPresence();
+      updateCollabHeader();
+      showToast("Joined the shared review");
+      return true;
+    }
+
+    function showViewer() {
+      uploadScreen.style.display = 'none';
+      viewerScreen.style.display = 'flex';
+      updateCollabHeader();
+      renderCurrentScenario();
+      updateGlobalProgress();
+      window.addEventListener('beforeunload', beforeUnloadHandler);
+    }
+
+    function prepareJoinScreen(id) {
+      uploadTitle.textContent = 'Join review';
+      uploadSubtitle.textContent = 'Enter your name to open the shared file. Reviews from teammates appear as they happen.';
+      hostPanel.style.display = 'none';
+      joinPanel.style.display = 'block';
+      joinRoomBtn.onclick = async () => {
+        if (!requireReviewerName()) return;
+        joinRoomBtn.disabled = true;
+        try { await joinRoom(id); }
+        finally { joinRoomBtn.disabled = false; }
+      };
+    }
+
+    function prepareHostScreen() {
+      uploadTitle.textContent = 'Scenario Reviewer';
+      uploadSubtitle.textContent = 'Enter your name, upload a JSON file, then share a link so the team can review in parallel.';
+      hostPanel.style.display = 'block';
+      joinPanel.style.display = 'none';
+    }
+
     // Data Processing
-    function processData(data) {
+    async function processData(data, options = {}) {
       if (!Array.isArray(data) || data.length === 0) {
         showToast("Invalid format: Expected a non-empty array of scenarios.", true);
         return;
@@ -1169,12 +1573,17 @@
       currentIndex = 0;
       editingCards.clear();
       isEditingScenario = false;
-      
-      uploadScreen.style.display = 'none';
-      viewerScreen.style.display = 'flex';
-      
-      renderCurrentScenario();
-      updateGlobalProgress();
+      showViewer();
+
+      if (options.createRoom && isFirebaseConfigured()) {
+        try { await createRoom(data); }
+        catch (err) {
+          console.error(err);
+          showToast("Could not create a shareable room. Reviewing locally.", true);
+        }
+      } else if (options.createRoom && !isFirebaseConfigured()) {
+        showToast("Reviewing locally. Add Firebase keys to share a room.");
+      }
     }
 
     function updateGlobalProgress() {
@@ -1184,7 +1593,7 @@
       scenarios.forEach(s => {
         s.responses.forEach(r => {
           totalResponses++;
-          if (r.is_valid === true || r.is_valid === false) reviewedResponses++;
+          if (isReviewedStatus(r.is_valid)) reviewedResponses++;
         });
       });
 
@@ -1206,6 +1615,7 @@
 
     window.updateScenarioText = function(val) {
       scenarios[currentIndex].scenario = val;
+      if (roomRef && !applyingRemote) writeRoomPath(`scenarios/${currentIndex}/scenario`, val);
     };
 
     window.toggleCardEdit = function(idx) {
@@ -1219,11 +1629,21 @@
 
     window.updateField = function(idx, field, val) {
       scenarios[currentIndex].responses[idx][field] = val;
+      syncResponse(currentIndex, idx);
     };
 
     window.reviewOption = function(idx, isValid) {
-      scenarios[currentIndex].responses[idx].is_valid = isValid;
+      const resp = scenarios[currentIndex].responses[idx];
+      resp.is_valid = isValid;
+      if (isValid === null) {
+        delete resp.reviewed_by;
+        delete resp.reviewed_at;
+      } else {
+        resp.reviewed_by = getReviewerName();
+        resp.reviewed_at = new Date().toISOString();
+      }
       editingCards.delete(idx);
+      syncResponse(currentIndex, idx);
       renderCurrentScenario();
       updateGlobalProgress();
       
@@ -1243,6 +1663,7 @@
       if (confirm("Delete this response option?")) {
         scenarios[currentIndex].responses.splice(idx, 1);
         editingCards.delete(idx);
+        syncScenario(currentIndex);
         renderCurrentScenario();
         updateGlobalProgress();
       }
@@ -1255,6 +1676,7 @@
         subcategory: "", category: "", notes: "", is_valid: null
       });
       editingCards.add(newIdx); // Open in edit mode
+      syncResponse(currentIndex, newIdx);
       renderCurrentScenario();
       updateGlobalProgress();
       
@@ -1329,7 +1751,7 @@
 
       responses.forEach((resp, idx) => {
         const status = getStatusInfo(resp.is_valid);
-        if (resp.is_valid === true || resp.is_valid === false) reviewedInScenario++;
+        if (isReviewedStatus(resp.is_valid)) reviewedInScenario++;
         const responseId = `response-${idx}`;
         
         // Build Main Card
@@ -1358,7 +1780,10 @@
         iItem.innerHTML = `
           <div class="index-item-left">
             <div class="status-icon ${status.class}">${status.icon}</div>
-            <div class="index-label">Option ${idx + 1}</div>
+            <div>
+              <div class="index-label">Option ${idx + 1}</div>
+              ${resp.reviewed_by ? `<div class="index-meta">${escapeHtml(status.text)} by ${escapeHtml(resp.reviewed_by)}</div>` : ''}
+            </div>
           </div>
         `;
         indexList.appendChild(iItem);
@@ -1372,7 +1797,7 @@
         <div class="response-header">
           <div class="response-title">
             Option ${idx + 1}
-            <span class="badge ${status.class}">${status.text}</span>
+            <span class="badge ${status.class}">${status.text}${resp.reviewed_by ? ` <span class="byline">by ${escapeHtml(resp.reviewed_by)}</span>` : ''}</span>
           </div>
           <div class="tags-row">
             ${resp.category ? `<span class="tag">${escapeHtml(resp.category)}</span>` : ''}
@@ -1419,6 +1844,13 @@
             <div style="display: flex; flex-direction: column; align-items: flex-start;">
               <span>Review</span>
               <span>Later</span>
+            </div>
+          </button>
+          <button class="btn ${resp.is_valid === 'not_needed' ? 'skipped' : 'secondary'}" onclick="reviewOption(${idx}, 'not_needed')" style="flex: 1; padding: 0.75rem; height: 52px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; line-height: 1.1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+              <span>Not</span>
+              <span>Needed</span>
             </div>
           </button>
           ${resp.is_valid !== null ? `
@@ -1679,29 +2111,54 @@
       if (scenarios.length > 0 && !confirm("You have unsaved edits. Close anyway?")) return;
       scenarios = [];
       window.removeEventListener('beforeunload', beforeUnloadHandler);
+      stopRoomSync();
+      history.replaceState({}, '', window.location.pathname);
       viewerScreen.style.display = 'none';
       uploadScreen.style.display = 'flex';
       fileInput.value = '';
+      prepareHostScreen();
     });
 
     loadSampleBtn.addEventListener('click', () => {
-      processData(JSON.parse(JSON.stringify(sampleData)));
-      window.addEventListener('beforeunload', beforeUnloadHandler);
+      if (!requireReviewerName()) return;
+      processData(JSON.parse(JSON.stringify(sampleData)), { createRoom: true });
+    });
+
+    copyLinkBtn.addEventListener('click', async () => {
+      if (!roomId) {
+        showToast("This session is local only. Add Firebase keys to share.", true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(roomUrl(roomId));
+        showToast("Link copied. Send it to teammates.");
+      } catch (err) {
+        showToast(roomUrl(roomId));
+      }
+    });
+
+    reviewerNameInput.addEventListener('change', () => {
+      getReviewerName();
+      updateCollabHeader();
     });
 
     // File Upload Handling
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    function loadJsonFile(file) {
+      if (!requireReviewerName()) return;
       const reader = new FileReader();
       reader.onload = (event) => {
-        try { 
-          processData(JSON.parse(event.target.result)); 
-          window.addEventListener('beforeunload', beforeUnloadHandler);
+        try {
+          processData(JSON.parse(event.target.result), { createRoom: true });
         }
         catch (err) { showToast("Invalid JSON file.", true); }
       };
       reader.readAsText(file);
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      loadJsonFile(file);
     });
 
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
@@ -1712,15 +2169,7 @@
       if (e.dataTransfer.files.length) {
         const file = e.dataTransfer.files[0];
         if (file.type === "application/json" || file.name.endsWith(".json")) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            try { 
-              processData(JSON.parse(event.target.result)); 
-              window.addEventListener('beforeunload', beforeUnloadHandler);
-            }
-            catch (err) { showToast("Invalid JSON file.", true); }
-          };
-          reader.readAsText(file);
+          loadJsonFile(file);
         } else {
           showToast("Please upload a .json file.", true);
         }
@@ -1735,6 +2184,20 @@
         return '';
       }
     }
+
+    (function boot() {
+      if (setupBanner) setupBanner.style.display = isFirebaseConfigured() ? 'none' : 'block';
+      updateCollabHeader();
+      const existingRoom = pendingRoomId();
+      if (existingRoom) {
+        prepareJoinScreen(existingRoom);
+        if (reviewerName) {
+          joinRoom(existingRoom);
+        }
+      } else {
+        prepareHostScreen();
+      }
+    })();
   </script>
 </body>
 </html>
