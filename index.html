@@ -347,6 +347,34 @@
       letter-spacing: 0.05em;
     }
 
+    .jump-page {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .jump-select {
+      width: 4.25rem;
+      padding: 0.3rem 0.4rem;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-main);
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .jump-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
     .scenario-text {
       font-size: 1.25rem;
       font-weight: 600;
@@ -1111,11 +1139,15 @@
             <div class="scenario-nav">
               <div class="scenario-nav-left">
                 <span class="scenario-counter" id="scenario-counter">Scenario 1 of 10</span>
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                   <button id="prev-btn" class="btn secondary" style="padding: 0.3rem 0.6rem;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     Prev
                   </button>
+                  <label class="jump-page">
+                    Page
+                    <input id="jump-select" class="jump-select" type="number" min="1" step="1" title="Go to page" aria-label="Go to page" />
+                  </label>
                   <button id="next-btn" class="btn secondary" style="padding: 0.3rem 0.6rem;">
                     Next
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -1231,6 +1263,7 @@
     const closeBtn = document.getElementById('close-btn');
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
+    const jumpSelect = document.getElementById('jump-select');
     const scenarioHeaderContent = document.getElementById('scenario-header-content');
     const scenarioCounter = document.getElementById('scenario-counter');
     const responsesContainer = document.getElementById('responses-container');
@@ -1767,6 +1800,7 @@
       scenarioCounter.textContent = `Scenario ${currentIndex + 1} of ${scenarios.length}`;
       prevBtn.disabled = currentIndex === 0;
       nextBtn.disabled = currentIndex === scenarios.length - 1;
+      syncJumpSelect();
       
       renderScenarioHeader();
       
@@ -1962,23 +1996,50 @@
     // Navigation Logic
     prevBtn.addEventListener('click', goPrev);
     nextBtn.addEventListener('click', goNext);
+    function jumpFromPageInput() {
+      const page = parseInt(jumpSelect.value, 10);
+      if (!Number.isInteger(page)) {
+        syncJumpSelect();
+        return;
+      }
+      goToScenario(page - 1);
+      syncJumpSelect();
+    }
+
+    jumpSelect.addEventListener('change', jumpFromPageInput);
+    jumpSelect.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        jumpFromPageInput();
+        jumpSelect.blur();
+      }
+    });
+
+    function syncJumpSelect() {
+      if (!jumpSelect) return;
+      jumpSelect.min = '1';
+      jumpSelect.max = String(Math.max(scenarios.length, 1));
+      jumpSelect.value = String(currentIndex + 1);
+    }
+
+    function goToScenario(idx) {
+      if (!Number.isInteger(idx) || idx < 0 || idx >= scenarios.length) {
+        syncJumpSelect();
+        return;
+      }
+      if (idx === currentIndex) return;
+      currentIndex = idx;
+      renderCurrentScenario();
+      document.getElementById('scenario-column').scrollTop = 0;
+      document.querySelector('.app-main').scrollTop = 0;
+    }
 
     function goNext() {
-      if (currentIndex < scenarios.length - 1) {
-        currentIndex++;
-        renderCurrentScenario();
-        document.getElementById('scenario-column').scrollTop = 0;
-        document.querySelector('.app-main').scrollTop = 0;
-      }
+      goToScenario(currentIndex + 1);
     }
 
     function goPrev() {
-      if (currentIndex > 0) {
-        currentIndex--;
-        renderCurrentScenario();
-        document.getElementById('scenario-column').scrollTop = 0;
-        document.querySelector('.app-main').scrollTop = 0;
-      }
+      goToScenario(currentIndex - 1);
     }
 
     // Search Logic (Kept from previous version, adapted for new DOM)
@@ -2083,7 +2144,7 @@
 
     // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       if (viewerScreen.style.display === 'flex') {
         if (e.key === 'ArrowRight') goNext();
         if (e.key === 'ArrowLeft') goPrev();
