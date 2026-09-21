@@ -1061,6 +1061,16 @@
       </div>
 
       <div id="host-panel">
+        <div class="reviewer-field">
+          <label for="speaker-name">Call them</label>
+          <input id="speaker-name" class="form-control" type="text" list="speaker-name-presets" placeholder="Captain, Customer, Restaurant…" maxlength="40" />
+          <datalist id="speaker-name-presets">
+            <option value="Captain"></option>
+            <option value="Customer"></option>
+            <option value="Restaurant"></option>
+            <option value="User"></option>
+          </datalist>
+        </div>
         <div id="drop-zone" class="drop-zone">
           <div class="drop-zone-text">Drag & Drop JSON file here</div>
           <p style="margin-bottom: 1.5rem; font-size: 0.85rem;">or</p>
@@ -1203,6 +1213,7 @@
     let isEditingScenario = false;
     let isScenarioCollapsed = false; // Mobile collapse state
     let reviewerName = localStorage.getItem('sr-reviewer-name') || '';
+    let speakerName = localStorage.getItem('sr-speaker-name') || 'Captain';
     let roomId = null;
     let isHost = false;
     let roomRef = null;
@@ -1278,6 +1289,7 @@
     const mobileOverlay = document.getElementById('mobile-overlay');
     const reviewRail = document.querySelector('.review-rail');
     const reviewerNameInput = document.getElementById('reviewer-name');
+    const speakerNameInput = document.getElementById('speaker-name');
     const hostPanel = document.getElementById('host-panel');
     const joinPanel = document.getElementById('join-panel');
     const joinRoomBtn = document.getElementById('join-room-btn');
@@ -1292,6 +1304,7 @@
     let searchActiveIndex = -1;
 
     if (reviewerNameInput) reviewerNameInput.value = reviewerName;
+    if (speakerNameInput) speakerNameInput.value = speakerName;
 
     // Utility Functions
 
@@ -1357,6 +1370,51 @@
       getReviewerName();
       if (reviewerChipName) reviewerChipName.textContent = reviewerName;
       return true;
+    }
+
+    function setSpeakerName(name) {
+      const cleaned = String(name || '').trim() || 'Captain';
+      speakerName = cleaned;
+      localStorage.setItem('sr-speaker-name', cleaned);
+      if (speakerNameInput) speakerNameInput.value = cleaned;
+      return speakerName;
+    }
+
+    function getSpeakerName() {
+      const typed = speakerNameInput ? speakerNameInput.value.trim() : '';
+      return setSpeakerName(typed || speakerName || 'Captain');
+    }
+
+    function speakerSlug(name) {
+      const slug = String(name || 'captain')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      return slug || 'captain';
+    }
+
+    function speakerSaysKey() {
+      return `${speakerSlug(speakerName)}_says`;
+    }
+
+    function getSpeakerLine(resp) {
+      if (!resp) return '';
+      const key = speakerSaysKey();
+      if (resp[key] != null && String(resp[key]) !== '') return resp[key];
+      if (resp.captain_says != null) return resp.captain_says;
+      return '';
+    }
+
+    function normalizeSpeakerLines(data) {
+      const key = speakerSaysKey();
+      (data || []).forEach(s => {
+        (s.responses || []).forEach(r => {
+          const line = getSpeakerLine(r);
+          if (key !== 'captain_says') delete r.captain_says;
+          r[key] = line;
+        });
+      });
     }
 
     function isFirebaseConfigured() {
@@ -1490,6 +1548,7 @@
     function applyRemoteScenarios(raw) {
       const incoming = normalizeRemoteScenarios(raw);
       if (!incoming.length) return;
+      normalizeSpeakerLines(incoming);
       applyingRemote = true;
       const canRerender = !isEditingScenario && editingCards.size === 0;
       if (canRerender) {
@@ -1549,6 +1608,7 @@
       await ref.set({
         createdAt: Date.now(),
         createdBy: getReviewerName(),
+        speakerName: getSpeakerName(),
         scenarios: data
       });
       roomId = id;
@@ -1579,6 +1639,7 @@
       roomId = id;
       roomRef = ref;
       isHost = isHostedRoom(id);
+      setSpeakerName(snap.val().speakerName || 'Captain');
       applyRemoteScenarios(snap.val().scenarios);
       showViewer();
       listenToRoomScenarios();
@@ -1624,12 +1685,14 @@
         return;
       }
 
+      getSpeakerName();
       data.forEach(s => {
         if (!s.responses) s.responses = [];
         s.responses.forEach(r => {
           if (r.is_valid === undefined) r.is_valid = null;
         });
       });
+      normalizeSpeakerLines(data);
 
       scenarios = data;
       currentIndex = 0;
@@ -1735,7 +1798,7 @@
     window.addResponse = function() {
       const newIdx = scenarios[currentIndex].responses.length;
       scenarios[currentIndex].responses.push({
-        actions: "", captain_says: "", agent_script: "",
+        actions: "", [speakerSaysKey()]: "", agent_script: "",
         subcategory: "", category: "", notes: "", is_valid: null
       });
       editingCards.add(newIdx); // Open in edit mode
@@ -1877,7 +1940,7 @@
           </div>
 
           <div class="chat-area">
-            ${renderChatBubble('Captain', resp.captain_says, 'chat-captain')}
+            ${renderChatBubble(speakerName, getSpeakerLine(resp), 'chat-captain')}
             ${renderChatBubble('Agent', resp.agent_script, 'chat-agent')}
           </div>
           
@@ -1945,8 +2008,8 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Captain Says</label>
-                <textarea class="form-control" onchange="updateField(${idx}, 'captain_says', this.value)">${escapeHtml(resp.captain_says)}</textarea>
+                <label class="form-label">${escapeHtml(speakerName)} Says</label>
+                <textarea class="form-control" onchange="updateField(${idx}, '${speakerSaysKey()}', this.value)">${escapeHtml(getSpeakerLine(resp))}</textarea>
               </div>
               <div class="form-group">
                 <label class="form-label">Agent Script</label>
@@ -2060,7 +2123,9 @@
         if (!matchFound) {
           for (let r of (s.responses || [])) {
             const searchableFields = [
-              { key: 'captain_says', label: 'Captain' }, { key: 'agent_script', label: 'Agent' },
+              { key: speakerSaysKey(), label: speakerName },
+              { key: 'captain_says', label: speakerName },
+              { key: 'agent_script', label: 'Agent' },
               { key: 'actions', label: 'Action' }, { key: 'notes', label: 'Note' },
               { key: 'category', label: 'Category' }, { key: 'subcategory', label: 'Subcategory' }
             ];
@@ -2233,6 +2298,10 @@
       getReviewerName();
       updateCollabHeader();
     });
+
+    if (speakerNameInput) {
+      speakerNameInput.addEventListener('change', () => getSpeakerName());
+    }
 
     // File Upload Handling
     function loadJsonFile(file) {
