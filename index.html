@@ -1609,6 +1609,7 @@
         createdAt: Date.now(),
         createdBy: getReviewerName(),
         speakerName: getSpeakerName(),
+        speakerSlug: speakerSlug(speakerName),
         scenarios: data
       });
       roomId = id;
@@ -1814,6 +1815,7 @@
 
     window.exportJson = function() {
       if (!isHost) return;
+      normalizeSpeakerLines(scenarios);
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(scenarios, null, 2));
       const dlAnchorElem = document.createElement('a');
       dlAnchorElem.setAttribute("href", dataStr);
